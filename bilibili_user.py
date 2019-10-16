@@ -38,7 +38,7 @@ def content_parse(key, cont):
         else:
             return None
     except Exception as e:
-        print(mid + '除了问题')
+        print(mid + '出了问题')
 
 
 def get_content(mid):
