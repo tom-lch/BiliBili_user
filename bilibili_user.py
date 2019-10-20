@@ -5,6 +5,8 @@ from store_data import store_MongoDB
 import threading
 from queue import Queue
 import re
+
+ERROR_LIST = []
 class Crwal_Thread(threading.Thread):
     def __init__(self, name, mid_list, que):
         super(Crwal_Thread, self).__init__()
@@ -31,14 +33,19 @@ class Store_Thread(threading.Thread):
         self.name = name
 
     def run(self):
-        print(f'-----{self.name}存储数据到mangodb!-----')
+        print(f'-----{self.name}需要将存储数据到mangodb!-----')
         while True:
+            # 解决生产者消费者模型中生产者慢、消费者快的问题
+            # 先用if 解决
+            # 在第5个版本中使用PV操作来来实现
+            if self.que.empty():
+                time.sleep(100)
             if self.que.empty():
                 break
             try:
-                items = self.que.get(True, 10)
+                items = self.que.get(True, 200)
                 store_MongoDB(items)
-                print(f'{self.name} is OK!')
+                print(f'{self.name} 存储 is OK!')
             except Exception as e:
                 print(e)
         print(f'------{self.name}存储线程结束-------')
@@ -75,9 +82,8 @@ def content_parse(mid, key, cont):
         else:
             return None
     except Exception as e:
-
-        print(f'{mid}除了问题')
-        print(mid + '出了问题')
+        ERROR_LIST.append(mid)
+        print(f'{str(mid)}除了问题')
 
 
 
@@ -139,19 +145,19 @@ if __name__ == '__main__':
     # 使用多线程爬B站数据
     print('开始爬数据')
     que = Queue()
-    mid_list = list(range(2, 10))
+    # 开始爬mid=2到99的用户数据
+    mid_list = list(range(2, 100))
     td_lists = crawl_list(mid_list, que)
     for td in td_lists:
         td.start()
 
-    time.sleep(10)
-
     stl_lists = store_list(que)
 
+    time.sleep(10)
     for stl in stl_lists:
         stl.start()
 
-    time.sleep(10)
+
     for td in td_lists:
         td.join()
 
@@ -159,4 +165,6 @@ if __name__ == '__main__':
         stl.join()
 
     print('OK')
+    print(ERROR_LIST)
 
+# 爬完后会发现有 mid=[38, 35, 23, 22, 21, 19, 14]的用户数据无法获取，需要进步不改善
