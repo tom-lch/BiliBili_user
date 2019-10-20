@@ -4,8 +4,7 @@ import json
 from store_data import store_MongoDB
 import threading
 from queue import Queue
-
-
+import re
 class Crwal_Thread(threading.Thread):
     def __init__(self, name, mid_list, que):
         super(Crwal_Thread, self).__init__()
@@ -76,7 +75,10 @@ def content_parse(mid, key, cont):
         else:
             return None
     except Exception as e:
+
         print(f'{mid}除了问题')
+        print(mid + '出了问题')
+
 
 
 def get_content(mid):
