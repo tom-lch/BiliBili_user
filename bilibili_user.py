@@ -2,12 +2,50 @@ import requests
 import time
 import json
 from store_data import store_MongoDB
-import multiprocessing
 import threading
-import re
+from queue import Queue
 
 
-def content_parse(key, cont):
+class Crwal_Thread(threading.Thread):
+    def __init__(self, name, mid_list, que):
+        super(Crwal_Thread, self).__init__()
+        self.name = name
+        self.mid_list = mid_list
+        self.que = que
+
+    def run(self):
+        print(f"--------启动线程{self.name}--------")
+        while 1:
+            if not self.mid_list:
+                break
+            mid = self.mid_list.pop()
+            items = get_content(mid)
+            self.que.put(items)
+            print(f'{self.name} 爬到了，已经返给队列')
+        print(f"-------{self.name} is OK!!--------")
+
+
+class Store_Thread(threading.Thread):
+    def __init__(self, que, name):
+        super(Store_Thread, self).__init__()
+        self.que = que
+        self.name = name
+
+    def run(self):
+        print(f'-----{self.name}存储数据到mangodb!-----')
+        while True:
+            if self.que.empty():
+                break
+            try:
+                items = self.que.get(True, 10)
+                store_MongoDB(items)
+                print(f'{self.name} is OK!')
+            except Exception as e:
+                print(e)
+        print(f'------{self.name}存储线程结束-------')
+
+
+def content_parse(mid, key, cont):
     try:
         if key == 'main_content':
             content = json.loads(cont.content.decode())['data']
@@ -38,11 +76,16 @@ def content_parse(key, cont):
         else:
             return None
     except Exception as e:
-        print(mid + '除了问题')
+        print(f'{mid}除了问题')
 
 
 def get_content(mid):
     # 获取Bilibili的json用户数据url
+    headers = {
+        "Referer": f"https://space.bilibili.com/{mid}/channel/index",
+        "Sec-Fetch-Mode": "no-cors",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.90 Safari/537.36",
+    }
     '''
     main_content = f"https://api.bilibili.com/x/space/acc/info?mid={mid}&jsonp=jsonp"
     card = f"https://api.bilibili.com/x/web-interface/card?mid={mid}&photo=true"
@@ -69,16 +112,49 @@ def get_content(mid):
     items = {}
     for key, value in url_dicts.items():
         cont = requests.get(url=value, headers=headers)
-        items[key] = content_parse(key, cont)
+        items[key] = content_parse(mid, key, cont)
     return items
 
 
+def crawl_list(mid_list, que):
+    th_lists = ['1号爬线程', '2号爬线程', '3号爬线程', '4号爬线程', '5号爬线程']
+    td_lists = []
+    for th in th_lists:
+        td = Crwal_Thread(name=th, mid_list=mid_list, que=que)
+        td_lists.append(td)
+    return td_lists
+
+
+def store_list(que):
+    st_lists = ['1号存线程', '2号存线程', '3号存线程']
+    stl_lists = []
+    for st in st_lists:
+        stl = Store_Thread(que=que, name=st)
+        stl_lists.append(stl)
+    return stl_lists
+
 if __name__ == '__main__':
-    mid = '395074625'
-    headers = {
-        "Referer": f"https://space.bilibili.com/{mid}/channel/index",
-        "Sec-Fetch-Mode": "no-cors",
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.90 Safari/537.36",
-    }
-    items = get_content(mid)
-    store_MongoDB(items)
+    # 使用多线程爬B站数据
+    print('开始爬数据')
+    que = Queue()
+    mid_list = list(range(2, 10))
+    td_lists = crawl_list(mid_list, que)
+    for td in td_lists:
+        td.start()
+
+    time.sleep(10)
+
+    stl_lists = store_list(que)
+
+    for stl in stl_lists:
+        stl.start()
+
+    time.sleep(10)
+    for td in td_lists:
+        td.join()
+
+    for stl in stl_lists:
+        stl.join()
+
+    print('OK')
+
