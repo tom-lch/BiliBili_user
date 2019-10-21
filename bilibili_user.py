@@ -4,15 +4,20 @@ import json
 from store_data import store_MongoDB
 import threading
 from queue import Queue
-import re
 
+# threading.Semaphore 使用PV操作
+productor = threading.Semaphore(5)  # P productor.acquire() V productor.release()
+resource = threading.Semaphore(100)
+consumer = threading.Semaphore(2)
 ERROR_LIST = []
+que = Queue()
+
+
 class Crwal_Thread(threading.Thread):
-    def __init__(self, name, mid_list, que):
+    def __init__(self, name, mid_list):
         super(Crwal_Thread, self).__init__()
         self.name = name
         self.mid_list = mid_list
-        self.que = que
 
     def run(self):
         print(f"--------启动线程{self.name}--------")
@@ -20,16 +25,14 @@ class Crwal_Thread(threading.Thread):
             if not self.mid_list:
                 break
             mid = self.mid_list.pop()
-            items = get_content(mid)
-            self.que.put(items)
+            get_content(mid)
             print(f'{self.name} 爬到了，已经返给队列')
         print(f"-------{self.name} is OK!!--------")
 
 
 class Store_Thread(threading.Thread):
-    def __init__(self, que, name):
+    def __init__(self, name):
         super(Store_Thread, self).__init__()
-        self.que = que
         self.name = name
 
     def run(self):
@@ -38,12 +41,14 @@ class Store_Thread(threading.Thread):
             # 解决生产者消费者模型中生产者慢、消费者快的问题
             # 先用if 解决
             # 在第5个版本中使用PV操作来来实现
-            if self.que.empty():
-                time.sleep(100)
-            if self.que.empty():
-                break
             try:
-                items = self.que.get(True, 200)
+                consumer.acquire(timeout=20)
+                resource.acquire()
+                if que.empty():
+                    break
+                items = que.get(True, 200)
+                resource.release()
+                productor.release()
                 store_MongoDB(items)
                 print(f'{self.name} 存储 is OK!')
             except Exception as e:
@@ -86,7 +91,6 @@ def content_parse(mid, key, cont):
         print(f'{str(mid)}除了问题')
 
 
-
 def get_content(mid):
     # 获取Bilibili的json用户数据url
     headers = {
@@ -121,6 +125,11 @@ def get_content(mid):
     for key, value in url_dicts.items():
         cont = requests.get(url=value, headers=headers)
         items[key] = content_parse(mid, key, cont)
+    productor.acquire(timeout=10)
+    resource.acquire()
+    que.put(items)
+    resource.release()
+    consumer.release()
     return items
 
 
@@ -128,7 +137,7 @@ def crawl_list(mid_list, que):
     th_lists = ['1号爬线程', '2号爬线程', '3号爬线程', '4号爬线程', '5号爬线程']
     td_lists = []
     for th in th_lists:
-        td = Crwal_Thread(name=th, mid_list=mid_list, que=que)
+        td = Crwal_Thread(name=th, mid_list=mid_list)
         td_lists.append(td)
     return td_lists
 
@@ -137,14 +146,15 @@ def store_list(que):
     st_lists = ['1号存线程', '2号存线程', '3号存线程']
     stl_lists = []
     for st in st_lists:
-        stl = Store_Thread(que=que, name=st)
+        stl = Store_Thread(name=st)
         stl_lists.append(stl)
     return stl_lists
 
-if __name__ == '__main__':
+
+def main():
     # 使用多线程爬B站数据
     print('开始爬数据')
-    que = Queue()
+
     # 开始爬mid=2到99的用户数据
     mid_list = list(range(2, 100))
     td_lists = crawl_list(mid_list, que)
@@ -157,7 +167,6 @@ if __name__ == '__main__':
     for stl in stl_lists:
         stl.start()
 
-
     for td in td_lists:
         td.join()
 
@@ -167,4 +176,8 @@ if __name__ == '__main__':
     print('OK')
     print(ERROR_LIST)
 
-# 爬完后会发现有 mid=[38, 35, 23, 22, 21, 19, 14]的用户数据无法获取，需要进步不改善
+    # 爬完后会发现有 mid=[38, 35, 23, ......]的用户数据无法获取，需要进步不改善
+
+
+if __name__ == '__main__':
+    main()
