@@ -68,7 +68,7 @@ def get_proxies():
     url = 'https://www.xicidaili.com/nn/'
     proxies = {'http': random.choice(proxies_list)}
     try:
-        res = urllib.urlopen(url, proxies=proxies).read()
+        res = urllib.request.urlopen(url, proxies=proxies).read()
     except Exception as e:
         proxies_list = get_proxies_list()
         return {'http': random.choice(proxies_list)}
@@ -76,7 +76,8 @@ def get_proxies():
 
 
 def content_parse(mid, key, cont):
-    time.sleep(1)
+    # 此处加上一个time.sleep()来调整爬取的速率
+    time.sleep(0.2)
     try:
         if key == 'main_content':
             content = json.loads(cont.content.decode())['data']
@@ -180,7 +181,7 @@ def main():
     print('开始爬数据')
 
     # 开始爬mid= m 到 n 的用户数据
-    mid_list = list(range(221050, 221200))
+    mid_list = list(range(220000, 221200))
     td_lists = crawl_list(mid_list)
     for td in td_lists:
         td.start()

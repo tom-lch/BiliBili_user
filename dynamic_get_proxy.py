@@ -22,7 +22,7 @@ def get_ip_lists(url):
         try:
             url = 'https://' + ip
             temp = {'https': url}
-            res = urllib.urlopen(url, proxies=temp).read()
+            res = urllib.request.urlopen(url, proxies=temp).read()
         except Exception as e:
             # 不可用从列表中展删除
             ip_list.remove(ip)
