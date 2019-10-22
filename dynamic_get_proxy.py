@@ -3,12 +3,11 @@ import urllib
 from lxml import etree
 import requests
 import random
+from config import user_agent_list
 
 headers = {
-    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.120 Safari/537.36',
+    'User-Agent': random.choice(user_agent_list)
 }
-
-
 # 从代理IP网站获取随机的ip
 def get_ip_lists(url):
     text = requests.get(url=url, headers=headers).text
@@ -31,14 +30,15 @@ def get_ip_lists(url):
     return ip_list
 
 
-def get_random_ip():
+def get_proxies_list():
     url = 'https://www.xicidaili.com/nn/'
     # 获取可用的IP池
     ip_list = get_ip_lists(url)
+    proxies_list = []
     # 从IP池中随机选一个ip返回
-    ip = random.sample(ip_list, 1)[0]
-    proxies = {'http': 'http://'+ip}
-    return proxies
+    for ip in ip_list:
+        proxies_list.append('http:'+ ip)
+    return proxies_list
 
 # if __name__ == '__main__':
 #    main()

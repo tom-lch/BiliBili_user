@@ -1,8 +1,11 @@
+import urllib
 import requests
 import time
 import json
 import threading
-from dynamic_get_proxy import get_random_ip
+import random
+from config import user_agent_list
+from dynamic_get_proxy import get_proxies_list
 from store_data import store_MongoDB
 from queue import Queue
 
@@ -12,6 +15,7 @@ resource = threading.Semaphore(20)
 consumer = threading.Semaphore(0)
 ERROR_LIST = []
 que = Queue(20)
+proxies_list = get_proxies_list()
 
 
 class Crwal_Thread(threading.Thread):
@@ -55,8 +59,20 @@ class Store_Thread(threading.Thread):
                 productor.release()
                 print(f'{self.name} 存储 is OK!')
             except Exception as e:
-                print(e,'存储出现问题')
+                print(e, '存储出现问题')
         print(f'------{self.name}存储线程结束-------')
+
+
+def get_proxies():
+    global proxies_list
+    url = 'https://www.xicidaili.com/nn/'
+    proxies = {'http': random.choice(proxies_list)}
+    try:
+        res = urllib.urlopen(url, proxies=proxies).read()
+    except Exception as e:
+        proxies_list = get_proxies_list()
+        return {'http': random.choice(proxies_list)}
+    return proxies
 
 
 def content_parse(mid, key, cont):
@@ -100,7 +116,7 @@ def get_content(mid):
     headers = {
         "Referer": f"https://space.bilibili.com/{mid}/channel/index",
         "Sec-Fetch-Mode": "no-cors",
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.90 Safari/537.36",
+        "User-Agent": random.choice(user_agent_list),
     }
     '''
     main_content = f"https://api.bilibili.com/x/space/acc/info?mid={mid}&jsonp=jsonp"
@@ -128,7 +144,8 @@ def get_content(mid):
     items = {}
     items['mid'] = mid
     # 获取动态ip进行反爬虫策略
-    proxies = get_random_ip()
+    # 如果刚好出现极端情况，还剩1s的proxies通过了之前的测试这里应该怎么处理？
+    proxies = get_proxies()
     for key, value in url_dicts.items():
         cont = requests.get(url=value, headers=headers, proxies=proxies)
         items[key] = content_parse(mid, key, cont)
@@ -157,6 +174,7 @@ def store_list():
         stl_lists.append(stl)
     return stl_lists
 
+
 def main():
     # 使用多线程爬B站数据
     print('开始爬数据')
@@ -183,6 +201,7 @@ def main():
         f.write(str(ERROR_LIST))
 
     # 爬完后会发现有 mid=[38, 35, 23, ......]的用户数据无法获取，需要进步不改善
+
 
 if __name__ == '__main__':
     main()
