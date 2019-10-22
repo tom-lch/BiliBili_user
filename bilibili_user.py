@@ -10,7 +10,7 @@ from store_data import store_MongoDB
 from queue import Queue
 
 # threading.Semaphore 使用PV操作
-productor = threading.Semaphore(5)  # P productor.acquire() V productor.release()
+productor = threading.Semaphore(25)  # P productor.acquire() V productor.release()
 resource = threading.Semaphore(20)
 consumer = threading.Semaphore(0)
 ERROR_LIST = []
@@ -65,18 +65,19 @@ class Store_Thread(threading.Thread):
 
 def get_proxies():
     global proxies_list
-    url = 'https://www.xicidaili.com/nn/'
+    url = 'https://www.baidu.com/'
     proxies = {'http': random.choice(proxies_list)}
     try:
-        res = urllib.urlopen(url, proxies=proxies).read()
+        res = urllib.request.urlopen(url, proxies=proxies).read()
     except Exception as e:
+        print('----------需要重新获取IP池------------')
         proxies_list = get_proxies_list()
         return {'http': random.choice(proxies_list)}
     return proxies
 
 
 def content_parse(mid, key, cont):
-    time.sleep(1)
+
     try:
         if key == 'main_content':
             content = json.loads(cont.content.decode())['data']
@@ -180,7 +181,7 @@ def main():
     print('开始爬数据')
 
     # 开始爬mid= m 到 n 的用户数据
-    mid_list = list(range(221050, 221200))
+    mid_list = list(range(221000, 221200))
     td_lists = crawl_list(mid_list)
     for td in td_lists:
         td.start()

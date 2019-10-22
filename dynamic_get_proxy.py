@@ -22,7 +22,7 @@ def get_ip_lists(url):
         try:
             url = 'https://' + ip
             temp = {'https': url}
-            res = urllib.urlopen(url, proxies=temp).read()
+            res = urllib.request.urlopen(url, proxies=temp).read()
         except Exception as e:
             # 不可用从列表中展删除
             ip_list.remove(ip)
@@ -37,7 +37,7 @@ def get_proxies_list():
     proxies_list = []
     # 从IP池中随机选一个ip返回
     for ip in ip_list:
-        proxies_list.append('http:'+ ip)
+        proxies_list.append('http://'+ ip)
     return proxies_list
 
 # if __name__ == '__main__':
