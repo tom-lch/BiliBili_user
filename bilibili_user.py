@@ -7,8 +7,8 @@ from queue import Queue
 
 # threading.Semaphore 使用PV操作
 productor = threading.Semaphore(5)  # P productor.acquire() V productor.release()
-resource = threading.Semaphore(100)
-consumer = threading.Semaphore(2)
+resource = threading.Semaphore(10)
+consumer = threading.Semaphore(0)
 ERROR_LIST = []
 que = Queue()
 
@@ -42,14 +42,14 @@ class Store_Thread(threading.Thread):
             # 先用if 解决
             # 在第5个版本中使用PV操作来来实现
             try:
-                consumer.acquire(timeout=20)
+                consumer.acquire(timeout=3)
                 resource.acquire()
                 if que.empty():
                     break
-                items = que.get(True, 200)
+                items = que.get(True, 20)
+                store_MongoDB(items)
                 resource.release()
                 productor.release()
-                store_MongoDB(items)
                 print(f'{self.name} 存储 is OK!')
             except Exception as e:
                 print(e)
@@ -128,12 +128,13 @@ def get_content(mid):
     productor.acquire(timeout=10)
     resource.acquire()
     que.put(items)
+    print(mid, items)
     resource.release()
     consumer.release()
     return items
 
 
-def crawl_list(mid_list, que):
+def crawl_list(mid_list):
     th_lists = ['1号爬线程', '2号爬线程', '3号爬线程', '4号爬线程', '5号爬线程']
     td_lists = []
     for th in th_lists:
@@ -142,7 +143,7 @@ def crawl_list(mid_list, que):
     return td_lists
 
 
-def store_list(que):
+def store_list():
     st_lists = ['1号存线程', '2号存线程', '3号存线程']
     stl_lists = []
     for st in st_lists:
@@ -156,14 +157,14 @@ def main():
     print('开始爬数据')
 
     # 开始爬mid=2到99的用户数据
-    mid_list = list(range(2, 100))
-    td_lists = crawl_list(mid_list, que)
+    mid_list = list(range(20540, 20600))
+    td_lists = crawl_list(mid_list)
     for td in td_lists:
         td.start()
 
-    stl_lists = store_list(que)
+    stl_lists = store_list()
 
-    time.sleep(10)
+    time.sleep(3)
     for stl in stl_lists:
         stl.start()
 
