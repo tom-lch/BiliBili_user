@@ -40,5 +40,5 @@ def get_proxies_list():
         proxies_list.append('http://'+ ip)
     return proxies_list
 
-# if __name__ == '__main__':
-#    main()
+#if __name__ == '__main__':
+#    get_proxies_list()

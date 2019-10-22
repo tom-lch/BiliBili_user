@@ -77,7 +77,12 @@ def get_proxies():
 
 
 def content_parse(mid, key, cont):
+<<<<<<< HEAD
 
+=======
+    # 此处加上一个time.sleep()来调整爬取的速率
+    time.sleep(0.2)
+>>>>>>> 92bca0675c6444e141a84800524c4c253e8de85a
     try:
         if key == 'main_content':
             content = json.loads(cont.content.decode())['data']
@@ -181,7 +186,11 @@ def main():
     print('开始爬数据')
 
     # 开始爬mid= m 到 n 的用户数据
+<<<<<<< HEAD
     mid_list = list(range(221000, 221200))
+=======
+    mid_list = list(range(220000, 221200))
+>>>>>>> 92bca0675c6444e141a84800524c4c253e8de85a
     td_lists = crawl_list(mid_list)
     for td in td_lists:
         td.start()
