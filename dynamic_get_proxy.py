@@ -37,8 +37,8 @@ def get_proxies_list():
     proxies_list = []
     # 从IP池中随机选一个ip返回
     for ip in ip_list:
-        proxies_list.append('http:'+ ip)
+        proxies_list.append('http://'+ ip)
     return proxies_list
 
-# if __name__ == '__main__':
-#    main()
+#if __name__ == '__main__':
+#    get_proxies_list()
