@@ -8,10 +8,10 @@ from queue import Queue
 
 # threading.Semaphore 使用PV操作
 productor = threading.Semaphore(5)  # P productor.acquire() V productor.release()
-resource = threading.Semaphore(10)
+resource = threading.Semaphore(20)
 consumer = threading.Semaphore(0)
 ERROR_LIST = []
-que = Queue()
+que = Queue(20)
 
 
 class Crwal_Thread(threading.Thread):
@@ -43,21 +43,24 @@ class Store_Thread(threading.Thread):
             # 先用if 解决
             # 在第5个版本中使用PV操作来来实现
             try:
-                consumer.acquire(timeout=3)
+                consumer.acquire()
                 resource.acquire()
-                if que.empty():
-                    break
                 items = que.get(True, 20)
                 store_MongoDB(items)
+                if que.empty():
+                    time.sleep(60)
+                    if que.empty():
+                        break
                 resource.release()
                 productor.release()
                 print(f'{self.name} 存储 is OK!')
             except Exception as e:
-                print(e)
+                print(e,'存储出现问题')
         print(f'------{self.name}存储线程结束-------')
 
 
 def content_parse(mid, key, cont):
+    time.sleep(1)
     try:
         if key == 'main_content':
             content = json.loads(cont.content.decode())['data']
@@ -123,16 +126,15 @@ def get_content(mid):
                  'follower': f"https://api.bilibili.com/x/relation/followers?vmid={mid}&pn=1&ps=20&order=desc&jsonp=jsonp&callback=__jp6"
                  }
     items = {}
+    items['mid'] = mid
     # 获取动态ip进行反爬虫策略
     proxies = get_random_ip()
-    print(proxies)
     for key, value in url_dicts.items():
         cont = requests.get(url=value, headers=headers, proxies=proxies)
         items[key] = content_parse(mid, key, cont)
     productor.acquire(timeout=10)
     resource.acquire()
     que.put(items)
-    print(mid, items)
     resource.release()
     consumer.release()
     return items
@@ -155,19 +157,16 @@ def store_list():
         stl_lists.append(stl)
     return stl_lists
 
-
 def main():
     # 使用多线程爬B站数据
     print('开始爬数据')
 
     # 开始爬mid= m 到 n 的用户数据
-    mid_list = list(range(120540, 120600))
+    mid_list = list(range(221050, 221200))
     td_lists = crawl_list(mid_list)
     for td in td_lists:
         td.start()
-
     stl_lists = store_list()
-
     time.sleep(3)
     for stl in stl_lists:
         stl.start()
@@ -180,9 +179,10 @@ def main():
 
     print('OK')
     print(ERROR_LIST)
+    with open('error_list.py', 'w+') as f:
+        f.write(str(ERROR_LIST))
 
     # 爬完后会发现有 mid=[38, 35, 23, ......]的用户数据无法获取，需要进步不改善
-
 
 if __name__ == '__main__':
     main()
