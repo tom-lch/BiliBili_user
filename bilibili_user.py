@@ -1,8 +1,9 @@
 import requests
 import time
 import json
-from store_data import store_MongoDB
 import threading
+from dynamic_get_proxy import get_random_ip
+from store_data import store_MongoDB
 from queue import Queue
 
 # threading.Semaphore 使用PV操作
@@ -122,8 +123,11 @@ def get_content(mid):
                  'follower': f"https://api.bilibili.com/x/relation/followers?vmid={mid}&pn=1&ps=20&order=desc&jsonp=jsonp&callback=__jp6"
                  }
     items = {}
+    # 获取动态ip进行反爬虫策略
+    proxies = get_random_ip()
+    print(proxies)
     for key, value in url_dicts.items():
-        cont = requests.get(url=value, headers=headers)
+        cont = requests.get(url=value, headers=headers, proxies=proxies)
         items[key] = content_parse(mid, key, cont)
     productor.acquire(timeout=10)
     resource.acquire()
@@ -156,8 +160,8 @@ def main():
     # 使用多线程爬B站数据
     print('开始爬数据')
 
-    # 开始爬mid=2到99的用户数据
-    mid_list = list(range(20540, 20600))
+    # 开始爬mid= m 到 n 的用户数据
+    mid_list = list(range(120540, 120600))
     td_lists = crawl_list(mid_list)
     for td in td_lists:
         td.start()
