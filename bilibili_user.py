@@ -5,18 +5,18 @@ import json
 import threading
 import random
 from config import user_agent_list
-from dynamic_get_proxy import get_proxies_list
+import dynamic_get_proxy
 from store_data import store_MongoDB
 from queue import Queue
 
 # threading.Semaphore 使用PV操作
 productor = threading.Semaphore(25)  # P productor.acquire() V productor.release()
-resource = threading.Semaphore(20)
+resource = threading.Semaphore(200)
 consumer = threading.Semaphore(0)
 ERROR_LIST = []
-que = Queue(20)
-proxies_list = get_proxies_list()
-
+que = Queue(200)
+proxies_list = dynamic_get_proxy.get_proxies_list()
+print(proxies_list)
 
 class Crwal_Thread(threading.Thread):
     def __init__(self, name, mid_list):
@@ -52,7 +52,7 @@ class Store_Thread(threading.Thread):
                 items = que.get(True, 20)
                 store_MongoDB(items)
                 if que.empty():
-                    time.sleep(60)
+                    time.sleep(120)
                     if que.empty():
                         break
                 resource.release()
@@ -65,24 +65,22 @@ class Store_Thread(threading.Thread):
 
 def get_proxies():
     global proxies_list
-    url = 'https://www.baidu.com/'
-    proxies = {'http': random.choice(proxies_list)}
-    try:
-        res = urllib.request.urlopen(url, proxies=proxies).read()
-    except Exception as e:
+    url = 'http://www.baidu.com/'
+    proxies = {'https': random.choice(proxies_list)}
+    r = requests.get(url=url, proxies=proxies)
+    if r.status_code == 200:
+        return proxies
+    else:
         print('----------需要重新获取IP池------------')
-        proxies_list = get_proxies_list()
-        return {'http': random.choice(proxies_list)}
-    return proxies
+        proxies_lists = dynamic_get_proxy.get_proxies_list()
+        return {'https': random.choice(proxies_lists)}
+
+
 
 
 def content_parse(mid, key, cont):
-<<<<<<< HEAD
-
-=======
     # 此处加上一个time.sleep()来调整爬取的速率
     time.sleep(0.2)
->>>>>>> 92bca0675c6444e141a84800524c4c253e8de85a
     try:
         if key == 'main_content':
             content = json.loads(cont.content.decode())['data']
@@ -151,9 +149,10 @@ def get_content(mid):
     items['mid'] = mid
     # 获取动态ip进行反爬虫策略
     # 如果刚好出现极端情况，还剩1s的proxies通过了之前的测试这里应该怎么处理？
-    proxies = get_proxies()
+    #proxies = get_proxies()
     for key, value in url_dicts.items():
-        cont = requests.get(url=value, headers=headers, proxies=proxies)
+        #cont = requests.get(url=value, headers=headers, proxies=proxies)
+        cont = requests.get(url=value, headers=headers)
         items[key] = content_parse(mid, key, cont)
     productor.acquire(timeout=10)
     resource.acquire()
@@ -184,31 +183,27 @@ def store_list():
 def main():
     # 使用多线程爬B站数据
     print('开始爬数据')
-
     # 开始爬mid= m 到 n 的用户数据
-<<<<<<< HEAD
-    mid_list = list(range(221000, 221200))
-=======
-    mid_list = list(range(220000, 221200))
->>>>>>> 92bca0675c6444e141a84800524c4c253e8de85a
-    td_lists = crawl_list(mid_list)
-    for td in td_lists:
-        td.start()
-    stl_lists = store_list()
-    time.sleep(3)
-    for stl in stl_lists:
-        stl.start()
+    for i in range(1, 15000):
+        mid_list = list(range((i-1)*10000, i*10000))
+        td_lists = crawl_list(mid_list)
+        for td in td_lists:
+            td.start()
+        stl_lists = store_list()
+        time.sleep(3)
+        for stl in stl_lists:
+            stl.start()
 
-    for td in td_lists:
-        td.join()
+        for td in td_lists:
+            td.join()
 
-    for stl in stl_lists:
-        stl.join()
+        for stl in stl_lists:
+            stl.join()
 
-    print('OK')
-    print(ERROR_LIST)
-    with open('error_list.py', 'w+') as f:
-        f.write(str(ERROR_LIST))
+        print('OK')
+        print(ERROR_LIST)
+        with open('error_list.py', 'w+') as f:
+            f.write(str(ERROR_LIST))
 
     # 爬完后会发现有 mid=[38, 35, 23, ......]的用户数据无法获取，需要进步不改善
 
